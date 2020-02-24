@@ -18,11 +18,11 @@ start() ->
 % Appeler apres une connection sur le serveur
 init([]) ->
     Users = dict:new(), % Map le nom à la socket
-    Msgs = dict:new(),
-    {ok, Users, Msgs}.
+    Tous_les_messages = dict:new(),
+    {ok, {Users, Tous_les_messages}}.
 
 % handle_call is invoked in response to gen_server:call
-handle_call({connect, Nick, Socket}, _From, Users) ->
+handle_call({connect, Nick, Socket}, _From, {Users, Tous_les_messages}) ->
     Response = case dict:is_key(Nick, Users) of
         true ->
             NewUsers = Users,
@@ -35,7 +35,7 @@ handle_call({connect, Nick, Socket}, _From, Users) ->
 
 
 
-handle_call({disconnect, Nick}, _From, Users) ->
+handle_call({disconnect, Nick}, _From, {Users, Tous_les_messages}) ->
     Response = case dict:is_key(Nick, Users) of
         true ->
             NewUsers = dict:erase(Nick, Users),
@@ -51,18 +51,18 @@ handle_call(_Message, _From, State) ->
 
 
 % handle_cast is invoked in response to gen_server:cast
-handle_cast({say, Nick, Msgs}, Users) ->
-    broadcast(Nick, "DIT:" ++ Nick ++ ":" ++ Msgs ++ "\n", Users),
+handle_cast({say, Nick, Tous_les_messages}, {Users, Tous_les_messages}) ->
+    broadcast(Nick, "DIT:" ++ Nick ++ ":" ++ Tous_les_messages ++ "\n", Users),
     %Rassembler les messages
-    NouveauMessages = dict:append(Nick, " Dit: ", Msgs, "~n"),
-    {noreply, Users, message_liste(NouveauMessages)};
+    Nouveau_message = dict:append(Nick, " Dit: ", Tous_les_messages),
+    {noreply, {Users, message_liste(Nouveau_message)}};
 
 
-handle_cast({join, Nick}, Users) ->
+handle_cast({join, Nick}, {Users, Tous_les_messages}) ->
     broadcast(Nick, "JOIN:" ++ Nick ++ "\n", Users),
     {noreply, Users};
 
-handle_cast({left, Nick}, Users) ->
+handle_cast({left, Nick}, {Users, Tous_les_messages}) ->
     broadcast(Nick, "LEFT:" ++ Nick ++ "\n", Users),
     {noreply, Users};
 
@@ -82,12 +82,12 @@ broadcast(Nick, Msg, Users) ->
     lists:foreach(fun(Sock) -> gen_tcp:send(Sock, Msg) end, Sockets).
 
 user_list(Users) ->
-    UserList = dict:fetch_keys(Users),
-    string:join(UserList, ":").
+    User_list = dict:fetch_keys(Users),
+    string:join(User_list, ":").
 
-message_liste(Msg) ->
-	MessageListe = dict:fetch_keys(Msg),
-	string:join(MessageListe, ":").
+message_liste(Message) ->
+	Message_liste = dict:fetch_keys(Message),
+	string:join(Message_liste, ":").
 
 % Definitions to avoid gen_server compile warnings
 handle_info(_Message, State) -> {noreply, State}.

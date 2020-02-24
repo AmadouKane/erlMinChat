@@ -18,10 +18,11 @@ accueil(Socket) ->
     case gen_tcp:recv(Socket, 0) of
         {ok, Data} ->
             io:format("Data: ~p~n", [binary_to_list(Data)]),
-            MessageDeDemmarage = binary_to_list(Data),           
-            case MessageDeDemmarage of
-                "CHAT" ->
-                    try_connection(pick_nickname(), Socket);
+            Message_de_demmarage = binary_to_list(Data),           
+            case Message_de_demmarage of
+                "CHAT" ++ _  ->
+					Utilisateur = pick_nickname(),
+                    try_connection(Utilisateur, Socket);
                 _ ->
                     gen_tcp:send(Socket, "VOUS DEVEZ SAISIR: CHAT, POUR DEMMARER!\n"),
                     ok
@@ -41,13 +42,13 @@ accueil(Socket) ->
 %Attend les connexions entrantes pour lancer base:loop/1
 %
 try_connection(Nick, Socket) ->
-    Response = gen_server:call(controller, {connect, Nick, Socket}),
+    Response = gen_server:call(controleur, {connect, Nick, Socket}),
     case Response of
-        {ok, List, NouveauMessages} ->
+        {ok, List} ->
             gen_tcp:send(Socket, "VOUS AVEZ REJOINT LE CHAT AVEC SUCCES :" ++ List ++ "\n"),
             %affiche les messages éhangé
-            gen_tcp:send(Socket, "-------------------ICI LES MESSAGES ECHANGES-------------------------\n" ++ NouveauMessages ++ "\n"),
-            gen_server:cast(controller, {join, Nick}),
+           % gen_tcp:send(Socket, "-------------------ICI LES MESSAGES ECHANGES-------------------------\n" ++ Nouveau_messages ++ "\n"),
+            gen_server:cast(controleur, {join, Nick}),
             loop(Nick, Socket);
         nick_in_use ->
             gen_tcp:send(Socket, "CONNECT:ERROR:NOM DEJA PRIS.\n"),
@@ -72,15 +73,15 @@ loop(Nick, Socket) ->
     end.  
 
 say(Nick, Socket, Content) ->
-    gen_server:cast(controller, {say, Nick, Content}),
+    gen_server:cast(controleur, {say, Nick, Content}),
     loop(Nick, Socket).
 
 quit(Nick, Socket) ->
-    Response = gen_server:call(controller, {disconnect, Nick}),
+    Response = gen_server:call(controleur, {disconnect, Nick}),
     case Response of
         ok ->
             gen_tcp:send(Socket, "--------------------Bye!------------------\n"),
-            gen_server:cast(controller, {left, Nick}),
+            gen_server:cast(controleur, {left, Nick}),
             ok;
         user_not_found ->
             gen_tcp:send(Socket, "---------------------Error, Bye!-----------\n"),
